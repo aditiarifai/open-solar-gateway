@@ -1,0 +1,6 @@
+# ESP32-C3 Partition Table 4MB Flash
+# Name, Type, SubType, Offset, Size
+nvs, data, nvs, 0x9000, 0x6000
+phy_init, data, phy, 0xf000, 0x1000
+factory, app, factory, 0x10000, 0x270000
+telemetry, data, spiffs, 0x280000, 0x100000

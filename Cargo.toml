@@ -1,0 +1,29 @@
+[package]
+name = "open-solar-gateway"
+version = "0.1.0"
+authors = ["Rifai"]
+description = "ESP32-C3 Solar & Battery Gateway firmware for Growatt SPF inverters and JK Smart BMS"
+license = "MIT"
+edition = "2021"
+resolver = "2"
+rust-version = "1.77"
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true
+opt-level = "z"
+
+[dependencies]
+esp-idf-svc = { version = "0.51", default-features = false, features = ["std", "alloc", "binstart"] }
+esp-idf-hal = { version = "0.45", default-features = false }
+embedded-svc = { version = "0.28", default-features = false }
+esp32-nimble = "=0.11.1"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+log = "0.4"
+anyhow = "1.0"
+
+[build-dependencies]
+embuild = { version = "0.33", features = ["espidf"] }

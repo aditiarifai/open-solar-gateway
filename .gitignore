@@ -1,0 +1,20 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+Cargo.lock
+
+# ESP-IDF temporary build files
+sdkconfig
+sdkconfig.old
+build/
+.espressif/
+
+# Telemetry CSV exports (local private logs)
+telemetry_export_*.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+

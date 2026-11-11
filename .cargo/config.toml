@@ -1,0 +1,18 @@
+[build]
+target = "riscv32imc-esp-espidf"
+target-dir = "C:/esp-target"
+
+[target.riscv32imc-esp-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+MCU = "esp32c3"
+ESP_IDF_VERSION = "v5.2.2"
+ESP_IDF_TOOLS_INSTALL_DIR = { value = "global" }
+ESP_IDF_SDKCONFIG_DEFAULTS = "C:/esp-target/sdkconfig.defaults"
+LIBCLANG_PATH = "C:/Users/rifai/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-clang/bin/libclang.dll"
+RUSTC_BOOTSTRAP = "1"
