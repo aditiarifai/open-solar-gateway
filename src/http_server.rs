@@ -21,6 +21,7 @@ pub fn start_http_server(
 ) -> Result<EspHttpServer<'static>> {
     let server_config = HttpServerConfig {
         stack_size: 10240,
+        uri_match_wildcard: true,
         ..Default::default()
     };
 
@@ -106,7 +107,43 @@ pub fn start_http_server(
     server.fn_handler::<anyhow::Error, _>("/setup", Method::Get, move |req| {
         let html = render_wifi_setup_html();
         let mut resp = req.into_ok_response()?;
-        resp.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n")?;
+        resp.write_all(html.as_bytes())?;
+        Ok(())
+    })?;
+
+    // 5b. Captive Portal Probes (Windows NCSI/WISPr, Android, Apple)
+    // Directly serve the Wi-Fi setup HTML page on Windows redirect so the popup window works immediately!
+    server.fn_handler::<anyhow::Error, _>("/redirect*", Method::Get, move |req| {
+        let html = render_wifi_setup_html();
+        let mut resp = req.into_ok_response()?;
+        resp.write_all(html.as_bytes())?;
+        Ok(())
+    })?;
+
+    server.fn_handler::<anyhow::Error, _>("/connecttest.txt*", Method::Get, move |req| {
+        let html = render_wifi_setup_html();
+        let mut resp = req.into_ok_response()?;
+        resp.write_all(html.as_bytes())?;
+        Ok(())
+    })?;
+
+    server.fn_handler::<anyhow::Error, _>("/ncsi.txt*", Method::Get, move |req| {
+        let html = render_wifi_setup_html();
+        let mut resp = req.into_ok_response()?;
+        resp.write_all(html.as_bytes())?;
+        Ok(())
+    })?;
+
+    server.fn_handler::<anyhow::Error, _>("/generate_204*", Method::Get, move |req| {
+        let html = render_wifi_setup_html();
+        let mut resp = req.into_ok_response()?;
+        resp.write_all(html.as_bytes())?;
+        Ok(())
+    })?;
+
+    server.fn_handler::<anyhow::Error, _>("/hotspot-detect.html*", Method::Get, move |req| {
+        let html = render_wifi_setup_html();
+        let mut resp = req.into_ok_response()?;
         resp.write_all(html.as_bytes())?;
         Ok(())
     })?;
@@ -124,7 +161,6 @@ pub fn start_http_server(
         if let WifiModeStatus::SoftApPortal { .. } = status {
             let html = render_wifi_setup_html();
             let mut resp = req.into_ok_response()?;
-            resp.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n")?;
             resp.write_all(html.as_bytes())?;
             return Ok(());
         }
@@ -148,7 +184,7 @@ pub fn start_http_server(
         html.push_str("</div>");
 
         html.push_str(&format!(
-            "<p style='color:#888;font-size:12px;'>Access: <b>http://solar</b> | IP: {} | History: {} Hours | <a href='/api/live' target='_blank'>JSON Live</a> | <a href='/api/history' target='_blank'>JSON History</a></p>",
+            "<p style='color:#888;font-size:12px;'>Access: <b>http://solar.local</b> | IP: {} | History: {} Hours | <a href='/api/live' target='_blank'>JSON Live</a> | <a href='/api/history' target='_blank'>JSON History</a></p>",
             ip_str, hist_count
         ));
 
@@ -188,7 +224,6 @@ pub fn start_http_server(
         html.push_str("<script>setTimeout(() => location.reload(), 5000);</script></body></html>");
 
         let mut resp = req.into_ok_response()?;
-        resp.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n")?;
         resp.write_all(html.as_bytes())?;
         Ok(())
     })?;
@@ -212,7 +247,7 @@ fn render_wifi_setup_html() -> String {
     h.push_str(".status{margin-top:15px;padding:10px;border-radius:8px;font-size:13px;display:none;}</style></head><body>");
 
     h.push_str("<h1>⚙️ Wi-Fi Setup Portal</h1>");
-    h.push_str("<p>Connect Open Solar Gateway to your home Wi-Fi network. Once saved, access the dashboard at <b>http://solar</b>.</p>");
+    h.push_str("<p>Connect Open Solar Gateway to your home Wi-Fi network. Once saved, access the dashboard at <b>http://solar.local</b>.</p>");
 
     h.push_str("<div class='card'>");
     h.push_str("<label>Home Wi-Fi Network (SSID):</label>");

@@ -88,11 +88,10 @@ impl WifiManager {
         let esp_wifi = EspWifi::new(modem, sys_loop.clone(), Some(self.nvs.clone()))?;
         let mut wifi = BlockingWifi::wrap(esp_wifi, sys_loop)?;
 
-        // Set local hostname 'solar' so router registers http://solar
+        // Set local hostname 'solar' on station interface
         unsafe {
             let h = b"solar\0".as_ptr() as *const _;
             esp_idf_svc::sys::esp_netif_set_hostname(wifi.wifi().sta_netif().handle(), h);
-            esp_idf_svc::sys::esp_netif_set_hostname(wifi.wifi().ap_netif().handle(), h);
         }
 
         // Check credentials in NVS or config.rs
@@ -146,7 +145,7 @@ impl WifiManager {
 
         // If no credentials or connection to STA failed: Start SoftAP Setup Portal mode!
         if !sta_connected {
-            warn!("⚠️ Client mode inactive -> Starting Wi-Fi Setup Portal (SoftAP: '{}')...", SETUP_AP_SSID);
+            warn!("⚠️ Client mode inactive -> Starting SoftAP Setup Portal ('{}')...", SETUP_AP_SSID);
 
             let ap_config = AccessPointConfiguration {
                 ssid: SETUP_AP_SSID.try_into().unwrap(),
@@ -155,10 +154,30 @@ impl WifiManager {
                 ..Default::default()
             };
 
-            // Use Mixed mode to broadcast SoftAP while still allowing Wi-Fi background scanning
-            let client_config = ClientConfiguration::default();
-            wifi.set_configuration(&Configuration::Mixed(client_config, ap_config))?;
+            wifi.set_configuration(&Configuration::AccessPoint(ap_config))?;
             wifi.start()?;
+
+            unsafe {
+                esp_idf_svc::sys::esp_wifi_set_ps(esp_idf_svc::sys::wifi_ps_type_t_WIFI_PS_NONE);
+                // Lower TX power to 44 (11 dBm) to prevent voltage rail collapse on ESP32-C3 SuperMini
+                esp_idf_svc::sys::esp_wifi_set_max_tx_power(44);
+                let mut pwr: i8 = 0;
+                esp_idf_svc::sys::esp_wifi_get_max_tx_power(&mut pwr);
+                info!("Wi-Fi SoftAP TX power set to: {} (0.25 dBm units = {:.2} dBm)", pwr, pwr as f32 * 0.25);
+
+                // Configure DHCP Server to advertise 192.168.71.1 as the DNS Server so 'http://solar' works out of the box
+                let ap_handle = wifi.wifi().ap_netif().handle();
+                esp_idf_svc::sys::esp_netif_dhcps_stop(ap_handle);
+                let mut dns_info: esp_idf_svc::sys::esp_netif_dns_info_t = core::mem::zeroed();
+                dns_info.ip.type_ = esp_idf_svc::sys::lwip_ip_addr_type_IPADDR_TYPE_V4 as u8;
+                dns_info.ip.u_addr.ip4.addr = u32::from_ne_bytes([192, 168, 71, 1]);
+                esp_idf_svc::sys::esp_netif_set_dns_info(
+                    ap_handle,
+                    esp_idf_svc::sys::esp_netif_dns_type_t_ESP_NETIF_DNS_MAIN,
+                    &mut dns_info,
+                );
+                esp_idf_svc::sys::esp_netif_dhcps_start(ap_handle);
+            }
 
             let ip_info = wifi.wifi().ap_netif().get_ip_info()?;
             let ip_str = format!("{}", ip_info.ip);

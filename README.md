@@ -16,8 +16,8 @@
    * Built-in **SoftAP Setup Portal** (`OpenSolarGateway-Setup`): Users connect to this hotspot from phone or laptop and configure home Wi-Fi via browser.
    * Credentials persist securely across reboots in **NVS Flash**.
 
-2. **Local Domain Name Access (`http://solar`):**
-   * Embedded hostname resolution: access the dashboard simply by browsing to **`http://solar`** or `http://192.168.71.1` without needing to look up the router's DHCP lease table.
+2. **Local Domain Name Access (`http://solar.local`):**
+   * Embedded hostname & mDNS resolution: access the dashboard simply by browsing to **`http://solar.local`** (recommended for Windows, macOS, iOS, and Android) or `http://solar` (when registered by your home router) or directly via IP `http://192.168.71.1`. No need to scan the router's DHCP lease table.
 
 3. **7-Day Offline Telemetry Buffer (1MB SPI Flash):**
    * Dedicated 1MB raw data partition formatted as a circular ring buffer.
@@ -81,10 +81,10 @@ espflash flash --port COMx --partition-table partitions.csv C:\esp-target\riscv3
    * **Password:** *(Open / None)*
 2. Connect your phone or laptop to `OpenSolarGateway-Setup`.
 3. Open a browser and navigate to:
-   👉 **`http://solar`** or **`http://192.168.71.1`**
+   👉 **`http://solar.local`** (or `http://192.168.71.1` / `http://solar`)
 4. Enter your home Wi-Fi SSID and password, then click **"Save & Connect"**.
 5. The ESP32 joins your home Wi-Fi network and makes its real-time dashboard accessible at:
-   👉 **`http://solar`**
+   👉 **`http://solar.local`** (or `http://solar`)
 
 ---
 
