@@ -4,26 +4,27 @@ ESP32 Telemetry Fetcher Script (Open Solar Gateway)
 Downloads historical 1-minute solar & battery telemetry records from ESP32 internal 1MB Flash via Serial Port (COM9).
 """
 
-import serial
-import time
-import os
+import argparse
 import datetime
+import os
+import time
+import serial
 
 PORT = "COM9"
 BAUD = 115200
 
-def fetch_data():
-    print(f"Connecting to ESP32 on {PORT} at {BAUD} baud...")
+def fetch_data(port=PORT, baud=BAUD, output_dir=None):
+    print(f"Connecting to ESP32 on {port} at {baud} baud...")
     try:
         ser = serial.Serial()
-        ser.port = PORT
-        ser.baudrate = BAUD
+        ser.port = port
+        ser.baudrate = baud
         ser.timeout = 2
         ser.dtr = False
         ser.rts = False
         ser.open()
     except Exception as e:
-        print(f"❌ Failed to open {PORT}: {e}")
+        print(f"❌ Failed to open {port}: {e}")
         return
 
     # Allow USB connection to stabilize
@@ -69,7 +70,14 @@ def fetch_data():
         return
 
     today_str = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    filename = f"telemetry_export_{today_str}.csv"
+    csv_name = f"telemetry_export_{today_str}.csv"
+
+    # Save to specified output directory, or default to current directory
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        filename = os.path.join(output_dir, csv_name)
+    else:
+        filename = csv_name
 
     with open(filename, "w", encoding="utf-8") as f:
         for l in csv_lines:
@@ -104,5 +112,28 @@ def fetch_data():
         except Exception as e:
             print(f"Failed to calculate summary: {e}")
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Download historical solar & battery telemetry records from ESP32 via serial."
+    )
+    parser.add_argument(
+        "-p", "--port",
+        default="COM9",
+        help="Serial port of ESP32 (default: COM9)"
+    )
+    parser.add_argument(
+        "-b", "--baud",
+        type=int,
+        default=115200,
+        help="Baud rate (default: 115200)"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        default=None,
+        help="Destination directory to save CSV file (default: current directory)"
+    )
+    args = parser.parse_args()
+    fetch_data(port=args.port, baud=args.baud, output_dir=args.output)
+
 if __name__ == "__main__":
-    fetch_data()
+    main()
