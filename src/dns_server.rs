@@ -144,3 +144,148 @@ impl CaptiveDnsServer {
         CaptiveDnsServer
     }
 }
+
+// =========================================================================
+// PURE-RUST mDNS RESPONDER (UDP PORT 5353, 224.0.0.251) FOR 'solar.local'
+// =========================================================================
+pub struct MdnsResponder;
+
+fn matches_solar_local(buf: &[u8], mut offset: usize) -> Option<usize> {
+    let mut labels = Vec::new();
+    while offset < buf.len() {
+        let len = buf[offset] as usize;
+        offset += 1;
+        if len == 0 {
+            let name = labels.join(".");
+            if name.eq_ignore_ascii_case("solar.local") {
+                return Some(offset);
+            }
+            return None;
+        }
+        if (len & 0xC0) == 0xC0 || offset + len > buf.len() {
+            return None;
+        }
+        if let Ok(s) = core::str::from_utf8(&buf[offset..offset + len]) {
+            labels.push(s);
+        } else {
+            return None;
+        }
+        offset += len;
+    }
+    None
+}
+
+fn skip_qname(buf: &[u8], mut offset: usize) -> Option<usize> {
+    while offset < buf.len() {
+        let len = buf[offset] as usize;
+        if len == 0 {
+            return Some(offset + 1);
+        }
+        if (len & 0xC0) == 0xC0 {
+            return if offset + 2 <= buf.len() { Some(offset + 2) } else { None };
+        }
+        offset += 1 + len;
+    }
+    None
+}
+
+impl MdnsResponder {
+    pub fn start(ip_octets: [u8; 4]) -> Self {
+        std::thread::Builder::new()
+            .stack_size(4096)
+            .name("mdns_responder".into())
+            .spawn(move || {
+                let socket = match UdpSocket::bind("0.0.0.0:5353") {
+                    Ok(s) => s,
+                    Err(e) => {
+                        warn!("❌ Failed to bind mDNS on UDP 5353: {:?}", e);
+                        return;
+                    }
+                };
+
+                let mcast = std::net::Ipv4Addr::new(224, 0, 0, 251);
+                let iface = std::net::Ipv4Addr::from(ip_octets);
+                if let Err(e) = socket.join_multicast_v4(&mcast, &iface) {
+                    warn!("⚠️ mDNS join_multicast_v4 warning: {:?}", e);
+                }
+
+                info!(
+                    "📡 mDNS Responder active: http://solar.local -> {}.{}.{}.{}",
+                    ip_octets[0], ip_octets[1], ip_octets[2], ip_octets[3]
+                );
+
+                // Pre-build RFC 6762 A-record response for solar.local
+                let mut resp = Vec::with_capacity(48);
+                resp.extend_from_slice(&[
+                    0x00, 0x00, // Transaction ID = 0
+                    0x84, 0x00, // Flags: Response + Authoritative
+                    0x00, 0x00, // QDCOUNT = 0
+                    0x00, 0x01, // ANCOUNT = 1
+                    0x00, 0x00, // NSCOUNT = 0
+                    0x00, 0x00, // ARCOUNT = 0
+                ]);
+                // QNAME: \x05solar\x05local\x00
+                resp.push(5);
+                resp.extend_from_slice(b"solar");
+                resp.push(5);
+                resp.extend_from_slice(b"local");
+                resp.push(0);
+                // TYPE A (1), CLASS IN + cache flush (0x8001), TTL 120s, RDLENGTH 4, IPv4
+                resp.extend_from_slice(&[0x00, 0x01, 0x80, 0x01, 0x00, 0x00, 0x00, 0x78, 0x00, 0x04]);
+                resp.extend_from_slice(&ip_octets);
+
+                let mcast_dest = std::net::SocketAddrV4::new(mcast, 5353);
+                let mut buf = [0u8; 512];
+
+                loop {
+                    let (len, src) = match socket.recv_from(&mut buf) {
+                        Ok(res) => res,
+                        Err(_) => {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            continue;
+                        }
+                    };
+
+                    if len < 12 || (buf[2] & 0x80) != 0 {
+                        continue;
+                    }
+
+                    let qdcount = ((buf[4] as u16) << 8) | (buf[5] as u16);
+                    let mut offset = 12;
+                    let mut should_reply = false;
+                    let mut unicast_reply = false;
+
+                    for _ in 0..qdcount.min(8) {
+                        let matched_end = matches_solar_local(&buf[..len], offset);
+                        let qname_end = match matched_end.or_else(|| skip_qname(&buf[..len], offset)) {
+                            Some(e) => e,
+                            None => break,
+                        };
+                        if qname_end + 4 > len {
+                            break;
+                        }
+                        let qtype = ((buf[qname_end] as u16) << 8) | (buf[qname_end + 1] as u16);
+                        let qclass = ((buf[qname_end + 2] as u16) << 8) | (buf[qname_end + 3] as u16);
+                        offset = qname_end + 4;
+
+                        if matched_end.is_some() && (qtype == 1 || qtype == 255) {
+                            should_reply = true;
+                            if (qclass & 0x8000) != 0 {
+                                unicast_reply = true;
+                            }
+                        }
+                    }
+
+                    if should_reply {
+                        let _ = socket.send_to(&resp, mcast_dest);
+                        if unicast_reply {
+                            let _ = socket.send_to(&resp, src);
+                        }
+                    }
+                }
+            })
+            .ok();
+
+        MdnsResponder
+    }
+}

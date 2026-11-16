@@ -120,10 +120,10 @@ impl WifiManager {
             wifi.set_configuration(&Configuration::Client(client_config))?;
             wifi.start()?;
 
-            // Maximize TX power and disable power saving for optimal RF range
+            // Set TX power to 60 (15 dBm): balanced range vs voltage rail stability on ESP32-C3 SuperMini
             unsafe {
                 esp_idf_svc::sys::esp_wifi_set_ps(esp_idf_svc::sys::wifi_ps_type_t_WIFI_PS_NONE);
-                esp_idf_svc::sys::esp_wifi_set_max_tx_power(84);
+                esp_idf_svc::sys::esp_wifi_set_max_tx_power(60);
             }
 
             for attempt in 1..=3 {

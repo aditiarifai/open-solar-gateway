@@ -18,7 +18,7 @@ mod local_telemetry;
 mod wifi_manager;
 
 use config::APP_CONFIG;
-use dns_server::CaptiveDnsServer;
+use dns_server::{CaptiveDnsServer, MdnsResponder};
 use growatt::*;
 use http_server::start_http_server;
 use jkbms::{poll_all_jkbms_ble, JkBmsTelemetry};
@@ -73,6 +73,7 @@ fn main() -> Result<()> {
     let mut _wifi = None;
     let mut _http_server = None;
     let mut _dns_server = None;
+    let mut _mdns = None;
 
     match wifi_mgr.init_wifi(peripherals.modem, sys_loop) {
         Ok(wifi) => {
@@ -82,12 +83,15 @@ fn main() -> Result<()> {
                 _ => ("192.168.4.1".to_string(), false),
             };
 
+            let ip_bytes = match ip_str.parse::<std::net::Ipv4Addr>() {
+                Ok(addr) => addr.octets(),
+                Err(_) => [192, 168, 71, 1],
+            };
+
             if is_ap {
-                let ip_bytes = match ip_str.parse::<std::net::Ipv4Addr>() {
-                    Ok(addr) => addr.octets(),
-                    Err(_) => [192, 168, 71, 1],
-                };
                 _dns_server = Some(CaptiveDnsServer::start(ip_bytes));
+            } else {
+                _mdns = Some(MdnsResponder::start(ip_bytes));
             }
 
             match start_http_server(
