@@ -7,8 +7,8 @@ pub struct Config {
     pub wifi_ssid: &'static str,
     pub wifi_pass: &'static str,
 
-    // Pinout ESP32-C3 SuperMini for MAX485 Transceiver Module:
-    // DI -> GPIO 5 (TX), DE+RE -> GPIO 3 (tied together physically), RO -> GPIO 4 (RX)
+    // Pinout CORE-ESP32 (ESP32-C3) for MAX485 Transceiver Module:
+    // DI -> GPIO 5 (TX), DE+RE -> GPIO 3 (tied together physically), RO -> GPIO 6 (RX)
     pub pin_uart_rx: u32,
     pub pin_uart_tx: u32,
     pub pin_rs485_dere: u32,
@@ -39,8 +39,8 @@ pub const APP_CONFIG: Config = Config {
     wifi_ssid: "",
     wifi_pass: "",
 
-    // Pinout ESP32-C3 SuperMini
-    pin_uart_rx: 4,
+    // Pinout CORE-ESP32 (ESP32-C3)
+    pin_uart_rx: 6,
     pin_uart_tx: 5,
     pin_rs485_dere: 3,
 

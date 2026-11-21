@@ -36,14 +36,14 @@
 
 ## 🛠️ Hardware Wiring & Pinout
 
-### ESP32-C3 SuperMini to MAX485 Transceiver Module
-| MAX485 Pin | ESP32-C3 SuperMini Pin | Function / Description |
+### CORE-ESP32 (ESP32-C3) to MAX485 Transceiver Module
+| MAX485 Pin | CORE-ESP32 Pin Label | Function / Description |
 | :--- | :---: | :--- |
-| **VCC** | **5V (VIN)** | 5V Module Supply |
+| **VCC** | **+5V** | 5V Module Supply |
 | **GND** | **GND** | Common Ground |
-| **RO** (Receiver Out) | **GPIO 4** | UART1 RX |
-| **DE + RE (Tied Together)** | **GPIO 3** | Transceiver Direction (HIGH: TX, LOW: RX) |
-| **DI** (Driver In) | **GPIO 5** | UART1 TX |
+| **RO** (Receiver Out) | **IO06** (GPIO 6) | UART1 RX |
+| **DE + RE (Tied Together)** | **IO03** (GPIO 3) | Transceiver Direction (HIGH: TX, LOW: RX) |
+| **DI** (Driver In) | **IO05** (GPIO 5) | UART1 TX |
 
 ### Inverter RS485 Port Connection (RJ45 LAN Cable)
 * Connect to the **`RS485`** port (the **RIGHT** RJ45 port under the Growatt SPF 5000 ES inverter):

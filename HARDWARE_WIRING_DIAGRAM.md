@@ -1,31 +1,47 @@
-# 📌 Hardware Wiring & Pinout Guide: ESP32-C3 SuperMini to MAX485 Module
+# 📌 Hardware Wiring & Pinout Guide: CORE-ESP32 (ESP32-C3) to MAX485 Module
 
-This document is a visual pinout reference for wiring the **ESP32-C3 SuperMini** to the **MAX485 TTL-to-RS485 transceiver module** to monitor a **Growatt SPF 5000 ES** off-grid inverter.
+This document is a visual pinout reference for wiring the **CORE-ESP32 (ESP32-C3 Dev Kit)** to the **MAX485 TTL-to-RS485 transceiver module** to monitor a **Growatt SPF 5000 ES** off-grid inverter.
 
 ---
 
-## 1. ESP32-C3 SuperMini Physical Pinout
-*(Position board with the **USB-C port facing UP**)*
+## 1. CORE-ESP32 (ESP32-C3) Physical Pinout
+*(Position board **facing BACK / Pin-Label side UP** with **Antenna end UP** and **USB-C port DOWN**, matching the silkscreen labels printed on the back of the PCB.)*
 
 ```text
-                     ┌───────────────────┐
-                     │    [ USB-C ]      │
-                     └───────────────────┘
-   (LEFT Row)                                  (RIGHT Row)
-┌─────────────────┐                         ┌─────────────────┐
-│ Pin 1: 5V (VIN) │ ──> To VCC (MAX485) ⚠️  │ Pin 1: GPIO 5   │ ──> To DI (MAX485)
-│ Pin 2: GND      │ ──> To GND (MAX485)     │ Pin 2: GPIO 6   │
-│ Pin 3: 3V3      │                         │ Pin 3: GPIO 7   │
-│ Pin 4: GPIO 4   │ ──> To RO (MAX485)      │ Pin 4: GPIO 8   │ (Internal Blue LED)
-│ Pin 5: GPIO 3   │ ──> To DE + RE (Tied)   │ Pin 5: GPIO 9   │ (BOOT Button)
-│ Pin 6: GPIO 2   │                         │ Pin 6: GPIO 10  │
-│ Pin 7: GPIO 1   │                         │ Pin 7: GPIO 20  │
-│ Pin 8: GPIO 0   │                         │ Pin 8: GPIO 21  │
-└─────────────────┘                         └─────────────────┘
+                      ┌───────────────────┐
+                      │  [ ANTENNA END ]  │
+                      └───────────────────┘
+   (LEFT Row - Back/Label View)                 (RIGHT Row - Back/Label View)
+┌──────────────────────────────┐               ┌──────────────────────┐
+│ Pin  1: GND                  │               │ Pin  1: GND          │
+│ Pin  2: 3.3V                 │ ──> LV (3.3V) │ Pin  2: IO00         │
+│ Pin  3: IO02                 │               │ Pin  3: IO01         │
+│ Pin  4: IO03 (GPIO 3)        │ ──> DE + RE   │ Pin  4: IO12         │
+│ Pin  5: IO10                 │               │ Pin  5: IO18 (USB D-)│
+│ Pin  6: IO06 (GPIO 6)        │ ──> RO (RX)   │ Pin  6: IO19 (USB D+)│
+│ Pin  7: IO07                 │               │ Pin  7: GND          │
+│ Pin  8: IO11                 │               │ Pin  8: RX0 (GPIO20) │
+│ Pin  9: GND                  │ ──> GND       │ Pin  9: TX0 (GPIO21) │
+│ Pin 10: 3.3V                 │               │ Pin 10: IO13         │
+│ Pin 11: IO05 (GPIO 5)        │ ──> DI (TX)   │ Pin 11: NC           │
+│ Pin 12: IO04 (GPIO 4)        │               │ Pin 12: EN           │
+│ Pin 13: IO08                 │               │ Pin 13: 3.3V         │
+│ Pin 14: IO09 (BOOT)          │               │ Pin 14: GND          │
+│ Pin 15: +5V                  │ ──> VCC (5V)  │ Pin 15: PWR          │
+│ Pin 16: GND                  │               │ Pin 16: +5V          │
+└──────────────────────────────┘               └──────────────────────┘
+                      ┌───────────────────┐
+                      │    [ USB-C ]      │
+                      └───────────────────┘
 ```
 
+*(Reference photos: [CORE-ESP32 Top](snapshots/core-esp32-c3-top.jpg) | [CORE-ESP32 Back Pinout](snapshots/core-esp32-c3-back-pinout.jpg) | [Level Shifter Module](snapshots/level-converter-mh.jpg) | [1-Ch BSS138 Schematic](snapshots/bss138-level-shifter-schematic.png))*
+
+> 💡 **All needed pins are on ONE side!**  
+> On the **CORE-ESP32** board, `+5V`, `3.3V`, `GND`, `IO03`, `IO05`, and `IO06` are all located on the **same row** (the **Left Row** when reading the pin labels on the back, or **Right Row** when looking from the top/component side).
+
 > 💡 **Tied DE + RE wire:**  
-> The **DE and RE pins are jumped/tied together into a single wire** and connected to **Left Row, Pin 5 (GPIO 3)**.  
+> The **DE and RE pins are jumped/tied together into a single wire** and connected to **IO03 (GPIO 3)** (Left Row, Pin 4).  
 > In firmware, GPIO 3 is driven **HIGH** during Modbus transmission and switched to **LOW** to receive the inverter's reply.
 
 ---
@@ -34,33 +50,35 @@ This document is a visual pinout reference for wiring the **ESP32-C3 SuperMini**
 
 The standard MAX485 module features 2 sides:
 
-### TTL Header Side (to ESP32-C3):
+### TTL Header Side (to CORE-ESP32):
 
-#### Option 1: Using 3.3V <-> 5V Logic Level Shifter (Recommended for 24/7 reliability):
+#### Option 1: Using 1-Channel Discrete BSS138 Level Shifter on `RO` Only (Recommended):
+*(Only `RO` outputs 5V into the ESP32-C3; `DI` and `DE + RE` are 3.3V outputs from ESP32-C3 which exceed MAX485's 2.0V `VIH` threshold, so they connect directly.)*
 ```text
-  ESP32-C3 (3.3V)               Level Shifter (4-Ch)            MAX485 Module (5V)
-┌─────────────────┐           ┌──────────────────────┐        ┌─────────────────┐
-│ 3V3 (Left #3)   │ ────────> │ LV (3.3V Side)       │        │                 │
-│ 5V/VIN (Left #1)│ ───────────────────────────────> │ HV ──> │ VCC (5V)        │
-│ GND (Left #2)   │ ────────> │ GND ───────────────── GND ──> │ GND             │
-│                 │           │                      │        │                 │
-│ GPIO 4 (RX)     │ <──────── │ LV1 <─────────── HV1 │ <───── │ RO              │
-│ GPIO 5 (TX)     │ ────────> │ LV2 ───────────> HV2 │ ─────> │ DI              │
-│ GPIO 3 (DE+RE)  │ ────────> │ LV3 ───────────> HV3 │ ─────> │ DE + RE (Jumper)│
-└─────────────────┘           └──────────────────────┘        └─────────────────┘
+  CORE-ESP32 (3.3V)            1-Ch BSS138 (LBSS138LT1G)         MAX485 Module (5V)
+┌───────────────────┐         ┌───────────────────────────┐      ┌─────────────────┐
+│ 3.3V (Left #2)    │ ──────> │ Gate (Pin 1) & 10kΩ to S  │      │                 │
+│ +5V  (Left #15)   │ ──────┬─│> 10kΩ pull-up to D        │ ───> │ VCC (5V)        │
+│ GND  (Left #9)    │ ──────┼──────────────────────────────────> │ GND             │
+│                   │       │ │                           │      │                 │
+│ IO06 / GPIO 6 (RX)│ <─────│─│ Source (Pin 2) ── Drain(3)│ <─── │ RO              │
+│ IO05 / GPIO 5 (TX)│ ──────┼─┴───────────────────────────┼────> │ DI (Direct)     │
+│ IO03 / GPIO 3     │ ──────┴─────────────────────────────┼────> │ DE + RE (Direct)│
+└───────────────────┘                                     └──────┴─────────────────┘
 ```
+*(See [1-Ch BSS138 Schematic](snapshots/bss138-level-shifter-schematic.png) for exact `LBSS138LT1G` + `R14/R15 10kΩ` connections.)*
 
 #### Option 2: Direct Connection (Testing / Prototype):
 ```text
-  MAX485 Module (5V)                ESP32-C3 SuperMini (3.3V)
-┌─────────────────┐               ┌───────────────────────────────────────┐
-│      VCC        │ ───────────── │ Left Pin 1  (5V / VIN)                │
-│      GND        │ ───────────── │ Left Pin 2  (GND)                     │
-│      RO         │ ───────────── │ Left Pin 4  (GPIO 4 / RX) ⚠️          │
-│    DE + RE      │ ───────────── │ Left Pin 5  (GPIO 3) 💡 Jumper wire   │
-│      DI         │ ───────────── │ Right Pin 1 (GPIO 5 / TX)             │
-└─────────────────┘               └───────────────────────────────────────┘
-⚠️ Note for direct connection: The MAX485 RO pin outputs a 5V logic signal to ESP32 GPIO 4 (3.3V tolerant domain).
+  MAX485 Module (5V)                CORE-ESP32 (3.3V)
+┌─────────────────┐               ┌────────────────────────────────────────┐
+│      VCC        │ ───────────── │ Left Pin 15 (+5V)                      │
+│      GND        │ ───────────── │ Left Pin 9  (GND)                      │
+│      RO         │ ───────────── │ Left Pin 6  (IO06 / GPIO 6 / RX) ⚠️    │
+│    DE + RE      │ ───────────── │ Left Pin 4  (IO03 / GPIO 3) 💡 Jumper  │
+│      DI         │ ───────────── │ Left Pin 11 (IO05 / GPIO 5 / TX)       │
+└─────────────────┘               └────────────────────────────────────────┘
+⚠️ Note for direct connection: The MAX485 RO pin outputs a 5V logic signal to ESP32 GPIO 6 (3.3V tolerant domain). Using a Level Shifter (or 1-ch BSS138 on RO) is safer for long-term 24/7 use.
 ```
 
 ### Green Screw Terminal Side to Growatt Inverter (RJ45):
@@ -92,9 +110,12 @@ On the bottom connectivity panel of the Growatt inverter:
 1. [x] **Firmware:** ESP32-C3 flashed with Open Solar Gateway Rust firmware.
 2. [x] **Inverter Settings:** Program 28 set to `001` (`Addr 1 028`), Program 05 set to `USE`.
 3. [ ] **RJ45 Jack:** Connected to the **RIGHT port (`RS485`)**.
-4. [ ] **Module Pins:**
-   * `RO` -> GPIO 4 (Left #4)
-   * `DI` -> GPIO 5 (Right #1)
-   * `DE + RE (Tied)` -> GPIO 3 (Left #5)
+4. [ ] **Module Pins (Back/Label View):**
+   * `RO` -> `IO06` / GPIO 6 (Left #6)
+   * `DI` -> `IO05` / GPIO 5 (Left #11)
+   * `DE + RE (Tied)` -> `IO03` / GPIO 3 (Left #4)
+   * `VCC` -> `+5V` (Left #15)
+   * `GND` -> `GND` (Left #9)
+   * `3.3V` (Level Shifter) -> `3.3V` (Left #2)
    * `A` -> Pin 2 RJ45
    * `B` -> Pin 1 RJ45

@@ -116,7 +116,7 @@ fn main() -> Result<()> {
     }
 
     // 3. Hardware UART RS485 MAX485
-    // DI -> GPIO 5 (TX), DE+RE -> GPIO 3 (tied together), RO -> GPIO 4 (RX)
+    // DI -> GPIO 5 (TX), DE+RE -> GPIO 3 (tied together), RO -> GPIO 6 (RX)
     let mut dere_pin = PinDriver::output(peripherals.pins.gpio3)?;
     dere_pin.set_low()?;
 
@@ -124,13 +124,13 @@ fn main() -> Result<()> {
     let mut uart = UartDriver::new(
         peripherals.uart1,
         peripherals.pins.gpio5,
-        peripherals.pins.gpio4,
+        peripherals.pins.gpio6,
         Option::<esp_idf_hal::gpio::AnyIOPin>::None,
         Option::<esp_idf_hal::gpio::AnyIOPin>::None,
         &uart_config,
     )?;
 
-    info!("Hardware RS485 ready: DI=GPIO5(TX), DE+RE=GPIO3, RO=GPIO4(RX)");
+    info!("Hardware RS485 ready: DI=GPIO5(TX), DE+RE=GPIO3, RO=GPIO6(RX)");
 
     let start_time = Instant::now();
     let mut last_bms_poll: Option<Instant> = None;
